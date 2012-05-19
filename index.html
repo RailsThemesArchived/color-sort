@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <script type="text/javascript" src="jquery-1.7.2.js"></script>
+    <script type="text/javascript" src="jquery.xcolor.js"></script>
+    <script type="text/javascript" src="jquery.color.js"></script>
+    <script type="text/javascript" src="jquery.dataTables.js"></script>
+    <!-- <style type="text/javascript" src="css/jquery.dataTables.css" /> -->
+    <!-- <style type="text/javascript" src="css/jquery.dataTables_themeroller.css" /> -->
+    <style type="text/css" src="css/demo_table.css" />
+    <style type="text/css">
+      table, tr, th, td{ border: 1px solid black; }
+      .dataTables_filter, .dataTables_length, .dataTables_info, .dataTables_paginate { display: none; }
+    </style>
+  </head>
+  <body>
+    <h2>Enter color list here:</h2>
+    <form id="colorform">
+      <textarea rows="20" cols="10"></textarea>
+      <br />
+      <input type="submit" />
+    </form>
+    <h2>Color table:</h2>
+    <div id="colortable">
+      <form id="csstable">
+        <table>
+          <thead>
+            <tr>
+              <th>color</th>
+              <th>hex</th>
+              <th>hex</th>
+              <th>lightness</th>
+              <th>saturation</th>
+              <th>hue</th>
+              <th>nearest color name</th>
+              <th>colorname</th>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+        <input type="submit" value="Generate scss" />
+      </form>
+    </div>
+    <h2>Scss variables</h2>
+    <div id="colorscss">
+      <textarea rows="20" cols="72"></textarea>
+    </div>
+    <script type="text/javascript">
+      $('#colorform').submit(function() {
+        var $text = $("#colorform textarea").val();
+        var textlines = $text.split("\n").sort(function(a,b){
+            var firsthue = $.Color(a).hue();
+            var secondhue = $.Color(b).hue();
+            var result = 0;
+            if(result == 0){
+              /* hue */
+              result = secondhue - firsthue;
+            }
+            if(result == 0){
+              /* lightness */
+              result = $.Color(a).lightness() - $.Color(b).lightness();
+            }
+            if(result == 0){
+              /* color name */
+              result = ($.xcolor.nearestname(a) > $.xcolor.nearestname(b))? 1 : -1;
+            }
+            if(result == 0){
+              /* saturation */
+              result = $.Color(a).saturation() - $.Color(b).saturation();
+            }
+            return result;
+          });
+        var $newbody = $('<tbody>');
+        var prevLineColorFinalName = "";
+        var prevLineDupCount = 0;
+        for(var i=0; i < textlines.length; i++){
+          var textline = textlines[i];
+          var $linecolor = $.Color(textline);
+          var nearestname = $.xcolor.nearestname(textline);
+
+          $newbody.append(
+            $('<tr>')
+            .append(
+                $('<td style="background-color:'+textline+'">'),
+                $('<td>').text(textline),
+                $('<td>').text($linecolor.toHexString()),
+                $('<td>').text($linecolor.lightness()),
+                $('<td>').text($linecolor.saturation()),
+                $('<td>').text($linecolor.hue()),
+                $('<td>').text(nearestname),
+                $('<td>').html('<input name="'+$linecolor.toHexString()+'" value="'+ nearestname +'" />')
+                )
+          );
+        }
+        $("#colortable table tbody").replaceWith($newbody);
+
+        /* Adjusting the names to prevent duplicates */
+        var $inputs = $("#colortable table tbody tr input");
+        var prevLineColorFinalName = "";
+        for(var i=0; i < $inputs.length; i++){
+          var $input = $($inputs[i]);
+          var myColorName = $.xcolor.nearestname($input.attr("name"));
+          var originalColorName = myColorName;
+
+          if( i > 0){
+            /* check all previous inputs for an input that's already started counting */
+            for( var j=i-1; j >= 0; j--){
+              if($.xcolor.nearestname($inputs[j].name) == myColorName){
+                var previousName = $inputs[j].value;
+                colorCount = parseInt(previousName[previousName.length - 1]) + 1;
+                myColorName = previousName.slice(0,previousName.length - 1) + colorCount;
+              }
+            }
+          }
+          if( i + 1 < $inputs.length && myColorName == originalColorName){
+            for( var j = i+1; j < $inputs.length; j++){
+              if($.xcolor.nearestname($inputs[j].name) == myColorName){
+                myColorName = myColorName + "1";
+              }
+            }
+          }
+          $input.val(myColorName);
+          prevLineColorFinalName = myColorName;
+        };
+        return false;
+      });
+      $('#csstable').submit(function() {
+        var scss_output = "";
+        $("#colortable table tbody tr input").each(function(index, input){
+          $input = $(input);
+          var colorname = $input.val();
+          var colorcode = $input.attr("name");
+          scss_output = scss_output + "$" + colorname +": "+ colorcode+";\n";
+        });
+        $("#colorscss textarea").val(scss_output);
+        return false;
+      });
+    </script>
+  </body>
+</html>
